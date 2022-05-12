@@ -13,3 +13,11 @@
 [submodule "third_party/skcms"]
 	path = third_party/skcms
 	url = https://skia.googlesource.com/skcms
+[submodule "third_party/brotli"]
+	path = third_party/brotli
+	url = https://github.com/libsdl-org/brotli.git
+	branch = v1.0.9-SDL
+[submodule "third_party/highway"]
+	path = third_party/highway
+	url = https://github.com/libsdl-org/highway.git
+	branch = 0.16.0-SDL
