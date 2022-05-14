@@ -538,11 +538,13 @@ foreach(target IN ITEMS jxl jxl_dec)
   set_property(TARGET ${target} APPEND_STRING PROPERTY
       LINK_FLAGS " -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/jxl/jxl.version")
   endif()  # APPLE
-  # This hides the default visibility symbols from static libraries bundled into
-  # the shared library. In particular this prevents exposing symbols from hwy
-  # and skcms in the shared library.
-  set_property(TARGET ${target} APPEND_STRING PROPERTY
-      LINK_FLAGS " -Wl,--exclude-libs=ALL")
+  if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    # This hides the default visibility symbols from static libraries bundled into
+    # the shared library. In particular this prevents exposing symbols from hwy
+    # and skcms in the shared library.
+    set_property(TARGET ${target} APPEND_STRING PROPERTY
+        LINK_FLAGS " -Wl,--exclude-libs=ALL")
+  endif()
 endforeach()
 
 # Only install libjxl shared library. The libjxl_dec is not installed since it
