@@ -20,4 +20,4 @@
 [submodule "third_party/highway"]
 	path = third_party/highway
 	url = https://github.com/libsdl-org/highway.git
-	branch = 0.16.0-SDL
+	branch = 0.15.0-SDL
