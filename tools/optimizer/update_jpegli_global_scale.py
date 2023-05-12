@@ -18,7 +18,7 @@ def SourceFileName():
   return "lib/jpegli/quant.cc"
 
 def ScalePattern(scale_type):
-  return "  constexpr float kGlobalScale" + scale_type + " = ";
+  return f"  constexpr float kGlobalScale{scale_type} = ";
 
 def CodecName(scale_type):
   if scale_type == "YCbCr":
@@ -26,7 +26,7 @@ def CodecName(scale_type):
   elif scale_type == "XYB":
     return "jpeg:enc-jpegli:xyb:q90"
   else:
-    raise Exception("Unknown scale type %s" % scale_type)
+    raise Exception(f"Unknown scale type {scale_type}")
   
 def ReadGlobalScale(scale_type):
   pattern = ScalePattern(scale_type)
@@ -34,7 +34,7 @@ def ReadGlobalScale(scale_type):
     for line in f.read().splitlines():
       if line.startswith(pattern):
         return float(line[len(pattern):-2])
-  raise Exception("Global scale %s not found." % scale_type)
+  raise Exception(f"Global scale {scale_type} not found.")
   
     
 def UpdateGlobalScale(scale_type, new_val):
@@ -49,7 +49,7 @@ def UpdateGlobalScale(scale_type, new_val):
       else:
         fdata += line + "\n"
   if not found_pattern:
-    raise Exception("Global scale %s not found." % scale_type)
+    raise Exception(f"Global scale {scale_type} not found.")
   with open(SourceFileName(), "w") as f:
     f.write(fdata)
     f.close()
@@ -79,7 +79,7 @@ if len(sys.argv) != 3:
 
 build_dir = sys.argv[1]
 corpus_dir = sys.argv[2]
-    
+
 jpeg_pnorm = EvalPnorm(build_dir, corpus_dir, "jpeg:q90")
 
 print("Libjpeg pnorm: %.8f" % jpeg_pnorm)
@@ -88,7 +88,7 @@ for scale_type in ["YCbCr", "XYB"]:
   scale = ReadGlobalScale(scale_type)
   best_scale = scale
   best_rel_error = 100.0
-  for i in range(10):
+  for _ in range(10):
     jpegli_pnorm = EvalPnorm(build_dir, corpus_dir, CodecName(scale_type))
     rel_error = abs(jpegli_pnorm / jpeg_pnorm - 1)
     print("[%-5s] scale: %.8f  pnorm: %.8f  error: %.8f" %

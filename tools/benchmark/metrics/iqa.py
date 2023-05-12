@@ -25,7 +25,7 @@ def read_pfm(fname):
         while len(header_width_height) < 3:
             header_width_height += f.readline().rstrip().split()
         header, width, height = header_width_height
-        assert header == b'PF' or header == b'Pf'
+        assert header in [b'PF', b'Pf']
         width, height = int(width), int(height)
         scale = float(f.readline().rstrip())
         fmt = '<f' if scale < 0 else '>f'
@@ -54,10 +54,7 @@ D_dict = {
 algo = os.path.basename(sys.argv[1]).split('.')[0]
 algo, color = algo.split('-')
 
-channels = 3
-
-if color == 'y':
-    channels = 1
+channels = 1 if color == 'y' else 3
 
 
 def Load(path):

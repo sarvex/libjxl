@@ -34,7 +34,7 @@ def CompareNPY(ref, ref_icc, dec, dec_icc, frame_idx, rmse_limit, peak_error):
     if ref_icc != dec_icc:
         # Transform colors before comparison.
         if num_channels < 3:
-            return Failure(f"Only RGB images are supported")
+            return Failure("Only RGB images are supported")
         dec_clr = dec_frame[:, :, 0:3]
         dec_frame[:, :, 0:3] = lcms2.convert_pixels(dec_icc, ref_icc, dec_clr)
 
@@ -69,8 +69,7 @@ def CompareBinaries(ref_bin, dec_bin):
     return True
 
 
-TEST_KEYS = set(
-    ['reconstructed_jpeg', 'original_icc', 'rms_error', 'peak_error'])
+TEST_KEYS = {'reconstructed_jpeg', 'original_icc', 'rms_error', 'peak_error'}
 
 
 def CheckMeta(dec, ref):
@@ -129,7 +128,7 @@ def ConformanceTestRunner(args):
             with tempfile.TemporaryDirectory(prefix=test_id) as work_dir:
                 input_filename = os.path.join(test_dir, 'input.jxl')
                 pixel_prefix = os.path.join(work_dir, 'decoded')
-                output_filename = pixel_prefix + '_image.npy'
+                output_filename = f'{pixel_prefix}_image.npy'
                 cmd = [args.decoder, input_filename, output_filename]
                 cmd_jpeg = []
                 if 'preview' in descriptor:
@@ -147,20 +146,15 @@ def ConformanceTestRunner(args):
                     exact_tests.append(('original.icc', decoded_original_icc))
                 meta_filename = os.path.join(work_dir, 'meta.json')
                 cmd.extend(['--metadata_out', meta_filename])
-                cmd.extend(['--icc_out', pixel_prefix + '.icc'])
-                cmd.extend(['--norender_spotcolors'])
-
+                cmd.extend(['--icc_out', f'{pixel_prefix}.icc', '--norender_spotcolors'])
                 print(f"Running: {cmd}", flush=True)
                 if subprocess.call(cmd) != 0:
-                    ok = Failure('Running the decoder (%s) returned error' %
-                                 ' '.join(cmd))
+                    ok = Failure(f"Running the decoder ({' '.join(cmd)}) returned error")
                     continue
                 if cmd_jpeg:
                     print(f"Running: {cmd_jpeg}", flush=True)
                     if subprocess.call(cmd_jpeg) != 0:
-                        ok = Failure(
-                            'Running the decoder (%s) returned error' %
-                            ' '.join(cmd_jpeg))
+                        ok = Failure(f"Running the decoder ({' '.join(cmd_jpeg)}) returned error")
                         continue
 
                 # Run validation of exact files.
@@ -182,7 +176,7 @@ def ConformanceTestRunner(args):
                 ok = ok & CheckMeta(meta, descriptor)
 
                 # Pixel data.
-                decoded_icc = pixel_prefix + '.icc'
+                decoded_icc = f'{pixel_prefix}.icc'
                 with open(decoded_icc, 'rb') as f:
                     decoded_icc = f.read()
                 reference_icc = os.path.join(test_dir, "reference.icc")

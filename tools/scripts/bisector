@@ -65,9 +65,9 @@ def _expandvars(vardef, env,
   current_expanded = vardef
   for num_recursions in range(max_recursion):
     if verbosity >= 3:
-      print(f'_expandvars(): num_recursions={num_recursions}, '
-            f'len={len(current_expanded)}' +
-            (', current: ' + current_expanded if verbosity >= 4 else ''))
+      print((
+          f'_expandvars(): num_recursions={num_recursions}, len={len(current_expanded)}'
+          + (f', current: {current_expanded}' if verbosity >= 4 else '')))
     if len > max_length:
         break
     current_expanded, num_replacements = re.subn(

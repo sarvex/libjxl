@@ -60,15 +60,13 @@ def parse_config(config_filename):
       for line in h:
         if re_comment.match(line):
           continue
-        m = re_param.match(line)
-        if not m:
+        if m := re_param.match(line):
+          conf[m['option']] = _CONF_PARSERS[m['option']](m['value'])
+        else:
           raise ValueError('Syntax error')
-        conf[m.group('option')] = (
-            _CONF_PARSERS[m.group('option')](m.group('value')))
   except Exception as exn:
-    raise ValueError('Bad Configuration line ({}): {}'.format(exn, line))
-  missing_options = set(_CONF_PARSERS) - set(conf)
-  if missing_options:
+    raise ValueError(f'Bad Configuration line ({exn}): {line}')
+  if missing_options := set(_CONF_PARSERS) - set(conf):
     raise ValueError('Missing configuration options: ' + ', '.join(
         sorted(missing_options)))
   return conf
@@ -78,15 +76,18 @@ def generate_demo_image(config, input_filename, output_filename):
   tempfiles = []
   #
   def encode_img(input_filename, output_filename, num_steps,
-                 heatmap_filename=None):
+                   heatmap_filename=None):
     replacements = {
-        '${INPUT}': input_filename,
-        '${OUTPUT}': output_filename,
-        '${STEPS}': str(num_steps),
-        # Heatmap argument will be provided in --param=value form.
-        '${HEATMAP_ARG}': ('--saliency_map_filename=' + heatmap_filename
-                           if heatmap_filename is not None else '')
-        }
+        '${INPUT}':
+        input_filename,
+        '${OUTPUT}':
+        output_filename,
+        '${STEPS}':
+        str(num_steps),
+        '${HEATMAP_ARG}':
+        f'--saliency_map_filename={heatmap_filename}'
+        if heatmap_filename is not None else '',
+    }
     # Remove empty args. This removes the heatmap-argument if no heatmap
     # is provided..
     cmd = [
@@ -95,12 +96,14 @@ def generate_demo_image(config, input_filename, output_filename):
     ]
     tempfiles.append(output_filename)
     subprocess.call(cmd)
+
   #
   def decode_img(input_filename, output_filename):
     replacements = {'${INPUT}': input_filename, '${OUTPUT}': output_filename}
     cmd = [replacements.get(arg, arg) for arg in config['jpegxl_decoder']]
     tempfiles.append(output_filename)
     subprocess.call(cmd)
+
   #
   def generate_heatmap(orig_image_filename, coarse_grained_filename,
                        heatmap_filename):
@@ -109,22 +112,32 @@ def generate_demo_image(config, input_filename, output_filename):
         heatmap_filename]
     tempfiles.append(heatmap_filename)
     subprocess.call(cmd)
+
   #
   try:
-    encode_img(input_filename, output_filename + '._step1.pik', 1)
-    decode_img(output_filename + '._step1.pik', output_filename + '._step1.png')
-    encode_img(input_filename, output_filename + '._step2.pik', 2)
-    decode_img(output_filename + '._step2.pik', output_filename + '._step2.png')
-    generate_heatmap(input_filename, output_filename + '._step2.png',
-                     output_filename + '._heatmap.png')
-    encode_img(input_filename,
-               output_filename + '._step3.pik', 3,
-               output_filename + '._heatmap.png')
-    encode_img(input_filename,
-               output_filename + '._step4.pik', 4,
-               output_filename + '._heatmap.png')
-    decode_img(output_filename + '._step3.pik', output_filename + '._step3.png')
-    decode_img(output_filename + '._step4.pik', output_filename + '._step4.png')
+    encode_img(input_filename, f'{output_filename}._step1.pik', 1)
+    decode_img(f'{output_filename}._step1.pik', f'{output_filename}._step1.png')
+    encode_img(input_filename, f'{output_filename}._step2.pik', 2)
+    decode_img(f'{output_filename}._step2.pik', f'{output_filename}._step2.png')
+    generate_heatmap(
+        input_filename,
+        f'{output_filename}._step2.png',
+        f'{output_filename}._heatmap.png',
+    )
+    encode_img(
+        input_filename,
+        f'{output_filename}._step3.pik',
+        3,
+        f'{output_filename}._heatmap.png',
+    )
+    encode_img(
+        input_filename,
+        f'{output_filename}._step4.pik',
+        4,
+        f'{output_filename}._heatmap.png',
+    )
+    decode_img(f'{output_filename}._step3.pik', f'{output_filename}._step3.png')
+    decode_img(f'{output_filename}._step4.pik', f'{output_filename}._step4.png')
     data_sizes = [
         os.stat('{}._step{}.pik'.format(output_filename, num_step)).st_size
         for num_step in (1, 2, 3, 4)]
@@ -136,22 +149,34 @@ def generate_demo_image(config, input_filename, output_filename):
                    for t_next, t_prev in zip(time_offsets[1:], time_offsets)]
     # Add a fake white initial image. As long as no usable image data is
     # available, the user will see a white background.
-    subprocess.call(['convert',
-                     output_filename + '._step1.png',
-                     '-fill', 'white', '-colorize', '100%',
-                     output_filename + '._step0.png'])
-    tempfiles.append(output_filename + '._step0.png')
+    subprocess.call([
+        'convert',
+        f'{output_filename}._step1.png',
+        '-fill',
+        'white',
+        '-colorize',
+        '100%',
+        f'{output_filename}._step0.png',
+    ])
+    tempfiles.append(f'{output_filename}._step0.png')
     subprocess.call(
-        ['convert', '-loop', '0', output_filename + '._step0.png'] +
-        [arg for args in [
-            ['-delay', str(time_delays[n - 1]),
-             '-blur', config['blurring'][n - 1],
-             '{}._step{}.png'.format(output_filename, n)]
-            for n in (1, 2, 3, 4)] for arg in args] +
-        ['-delay', str(round(100 * config[
-            'simulated_progressive_loading_delay_until_looparound_sec'])),
-         output_filename + '._step4.png',
-         output_filename])
+        ((['convert', '-loop', '0', f'{output_filename}._step0.png'] + [
+            arg for args in [[
+                '-delay',
+                str(time_delays[n - 1]),
+                '-blur',
+                config['blurring'][n - 1],
+                '{}._step{}.png'.format(output_filename, n),
+            ] for n in (1, 2, 3, 4)] for arg in args
+        ]) + [
+            '-delay',
+            str(
+                round(100 * config[
+                    'simulated_progressive_loading_delay_until_looparound_sec']
+                      )),
+            f'{output_filename}._step4.png',
+            output_filename,
+        ]))
   finally:
     if not config['keep_tempfiles']:
       for filename in tempfiles:
@@ -167,8 +192,7 @@ def main():
   if (len(sys.argv) != 4 or not sys.argv[-1].endswith('.gif')
       or not sys.argv[-2].endswith('.png')):
     sys.exit(
-        'Usage: {} [config_options_file] [input.png] [output.gif]'.format(
-            sys.argv[0]))
+        f'Usage: {sys.argv[0]} [config_options_file] [input.png] [output.gif]')
   try:
     _, config_filename, input_filename, output_filename = sys.argv
     config = parse_config(config_filename)

@@ -14,13 +14,12 @@ import subprocess
 def GetVersion():
     """Function to get the version of the current code."""
     with open(os.path.join(
-            os.path.dirname(__file__), '../../lib/CMakeLists.txt'), 'r') as f:
+                os.path.dirname(__file__), '../../lib/CMakeLists.txt'), 'r') as f:
         cmakevars = {}
         for line in f:
-            m = re.match(r'set\(JPEGXL_([A-Z]+)_VERSION ([^\)]+)\)', line)
-            if m:
-                cmakevars[m.group(1)] = m.group(2)
-    return '%s.%s.%s' % (cmakevars['MAJOR'], cmakevars['MINOR'], cmakevars['PATCH'])
+            if m := re.match(r'set\(JPEGXL_([A-Z]+)_VERSION ([^\)]+)\)', line):
+                cmakevars[m[1]] = m[2]
+    return f"{cmakevars['MAJOR']}.{cmakevars['MINOR']}.{cmakevars['PATCH']}"
 
 def ConfigProject(app, config):
     # Configure the doxygen xml directory as the "xml" directory next to the

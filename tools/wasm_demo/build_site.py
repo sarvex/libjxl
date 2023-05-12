@@ -27,7 +27,7 @@ def escape_js(js):
 
 def compress(path):
   name = path.name
-  compressible = any([name.endswith(ext) for ext in COMPRESSIBLE_EXT])
+  compressible = any(name.endswith(ext) for ext in COMPRESSIBLE_EXT)
   if not compressible:
     print(f'Not compressing {name}')
     return
@@ -36,12 +36,12 @@ def compress(path):
   if BROTLIFY:
     cmd_brotli = ['brotli', '-Zfk', path.absolute()]
     subprocess.run(cmd_brotli, check=True, stdout=sys.stdout, stderr=sys.stderr)
-    br_size = path.parent.joinpath(name + '.br').stat().st_size
+    br_size = path.parent.joinpath(f'{name}.br').stat().st_size
     print(f'  Brotli: {orig_size} -> {br_size}')
   if ZOPFLIFY:
     cmd_zopfli = ['zopfli', path.absolute()]
     subprocess.run(cmd_zopfli, check=True, stdout=sys.stdout, stderr=sys.stderr)
-    gz_size = path.parent.joinpath(name + '.gz').stat().st_size
+    gz_size = path.parent.joinpath(f'{name}.gz').stat().st_size
     print(f'  Zopfli: {orig_size} -> {gz_size}')
 
 def uglify(text, name):
@@ -63,13 +63,13 @@ if __name__ == "__main__":
   substitutes = {}
 
   for name in EMBED_BIN:
-    key = '$' + name + '$'
+    key = f'${name}$'
     path = binary_path.joinpath(name)
     value = escape_js(uglify(path.read_text().strip(), name))
     substitutes[key] = value
 
   for name in EMBED_SRC:
-    key = '$' + name + '$'
+    key = f'${name}$'
     path = source_path.joinpath(name)
     value = escape_js(uglify(path.read_text().strip(), name))
     substitutes[key] = value

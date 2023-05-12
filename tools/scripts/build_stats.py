@@ -145,10 +145,16 @@ def LoadStackSizes(filename, binutils=''):
   section, which can be done by compiling with -fstack-size-section in clang.
   """
   with tempfile.NamedTemporaryFile() as stack_sizes_sec:
-    subprocess.check_call(
-        [binutils + 'objcopy', '-O', 'binary', '--only-section=.stack_sizes',
-         '--set-section-flags', '.stack_sizes=alloc', filename,
-         stack_sizes_sec.name])
+    subprocess.check_call([
+        f'{binutils}objcopy',
+        '-O',
+        'binary',
+        '--only-section=.stack_sizes',
+        '--set-section-flags',
+        '.stack_sizes=alloc',
+        filename,
+        stack_sizes_sec.name,
+    ])
     stack_sizes = stack_sizes_sec.read()
   # From the documentation:
   #  The section will contain an array of pairs of function symbol values
@@ -157,15 +163,15 @@ def LoadStackSizes(filename, binutils=''):
   #  dynamic stack allocations are not included.
 
   # Get the pointer format based on the ELF file.
-  output = subprocess.check_output(
-      [binutils + 'objdump', '-a', filename]).decode('utf-8')
-  elf_format = re.search('file format (.*)$', output, re.MULTILINE).group(1)
+  output = subprocess.check_output([f'{binutils}objdump', '-a',
+                                    filename]).decode('utf-8')
+  elf_format = re.search('file format (.*)$', output, re.MULTILINE)[1]
   if elf_format.startswith('elf64-little') or elf_format == 'elf64-x86-64':
     pointer_fmt = '<Q'
   elif elf_format.startswith('elf32-little') or elf_format == 'elf32-i386':
     pointer_fmt = '<I'
   else:
-    raise Exception('Unknown ELF format: %s' % elf_format)
+    raise Exception(f'Unknown ELF format: {elf_format}')
   pointer_size = struct.calcsize(pointer_fmt)
 
   ret = []
@@ -218,7 +224,7 @@ def PrintStats(stats):
       if typ in RAM_SIZE:
         ram_size += size
       if typ not in BIN_SIZE + RAM_SIZE:
-        raise Exception('Unknown type "%s"' % typ)
+        raise Exception(f'Unknown type "{typ}"')
     if objstat.in_partition:
       sum_bin_size += bin_size
       sum_ram_size += ram_size
@@ -291,7 +297,6 @@ def SizeStats(args):
     syms[entry] = LoadSymbols(fn)
 
   for target in args.target:
-    tgt_stats = []
     tgt = tgts[target]
 
     tgt_syms = syms[target]
@@ -302,7 +307,7 @@ def SizeStats(args):
       elif sym.typ.lower() in IGNORE_SYMBOLS:
         continue
       else:
-        print('Unknown: %s %s' % (sym.typ, sym.name))
+        print(f'Unknown: {sym.typ} {sym.name}')
 
     target_path = os.path.join(args.build_dir, tgt.filename)
     sym_stacks = []
@@ -323,12 +328,11 @@ def SizeStats(args):
       tgt_top_symbols = tgt_top_symbols[:args.top_symbols]
 
     tgt_size = TargetSize(tgt_syms)
-    tgt_stats.append(ObjectStats(target, False, tgt_size))
-
+    tgt_stats = [ObjectStats(target, False, tgt_size)]
     # Split out by SIMD.
     for namespace in SIMD_NAMESPACES:
       mangled = str(len(namespace)) + namespace
-      if not any(mangled in sym.name for sym in tgt_syms):
+      if all(mangled not in sym.name for sym in tgt_syms):
         continue
       ret = {}
       for sym in tgt_syms:
@@ -354,11 +358,10 @@ def SizeStats(args):
         # level.
         for obj_dep in sorted(TargetTransitiveDeps(tgts, obj),
                               key=os.path.basename):
-          obj_dep_size = TargetSize(syms[obj_dep], dep_used_syms)
-          if not obj_dep_size:
-            continue
-          tgt_stats.append(ObjectStats(
-              '   '+ os.path.basename(obj_dep), False, obj_dep_size))
+          if obj_dep_size := TargetSize(syms[obj_dep], dep_used_syms):
+            tgt_stats.append(
+                ObjectStats(f'   {os.path.basename(obj_dep)}', False,
+                            obj_dep_size))
 
     PrintStats(tgt_stats)
     PrintStackStats(tgt_stack_sizes)

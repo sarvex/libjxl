@@ -93,7 +93,7 @@ def SplitLibFiles(repo_files):
   public_headers, srcs = Filter(srcs, HasPrefixFn('include/jxl/'))
   threads_sources, srcs = Filter(srcs, HasPrefixFn('threads/'))
 
-  Check(len(srcs) == 0, 'Orphan source files: ' + str(srcs))
+  Check(len(srcs) == 0, f'Orphan source files: {str(srcs)}')
 
   base_sources, lib_srcs = Filter(lib_srcs, HasPrefixFn('jxl/base/'))
 
@@ -164,7 +164,7 @@ def MaybeUpdateFile(args, filename, new_text):
     return True
 
   if args.update:
-    print('Updating %s' % filename)
+    print(f'Updating {filename}')
     with open(filepath, 'w') as f:
       f.write(new_text)
     return True
@@ -173,8 +173,16 @@ def MaybeUpdateFile(args, filename, new_text):
     with tempfile.NamedTemporaryFile(mode='w', prefix=prefix) as new_file:
       new_file.write(new_text)
       new_file.flush()
-      subprocess.call(['diff', '-u', filepath, '--label', 'a/' + filename,
-        new_file.name, '--label', 'b/' + filename])
+      subprocess.call([
+          'diff',
+          '-u',
+          filepath,
+          '--label',
+          f'a/{filename}',
+          new_file.name,
+          '--label',
+          f'b/{filename}',
+      ])
     return False
 
 
@@ -183,19 +191,17 @@ def FormatList(items, prefix, suffix):
 
 
 def FormatGniVar(name, var):
-  if type(var) is list:
-    contents = FormatList(var, '    "', '",')
-    return f'{name} = [\n{contents}]\n'
-  else:  # TODO: do we need scalar strings?
+  if type(var) is not list:
     return f'{name} = {var}\n'
+  contents = FormatList(var, '    "', '",')
+  return f'{name} = [\n{contents}]\n'
 
 
 def FormatCMakeVar(name, var):
-  if type(var) is list:
-    contents = FormatList(var, '  ', '')
-    return f'set({name}\n{contents})\n'
-  else:  # TODO: do we need scalar strings?
+  if type(var) is not list:
     return f'set({name} {var})\n'
+  contents = FormatList(var, '  ', '')
+  return f'set({name}\n{contents})\n'
 
 
 def BuildCleaner(args):
@@ -204,27 +210,26 @@ def BuildCleaner(args):
   with open(os.path.join(args.src_dir, 'lib/CMakeLists.txt'), 'r') as f:
     cmake_text = f.read()
   version = {'major_version': '', 'minor_version': '', 'patch_version': ''}
-  for var in version.keys():
+  for var in version:
     cmake_var = f'JPEGXL_{var.upper()}'
     # TODO(eustas): use `cmake -L`
     # Regexp:
     #   set(_varname_ _capture_decimal_)
     match = re.search(r'set\(' + cmake_var + r' ([0-9]+)\)', cmake_text)
-    version[var] = match.group(1)
+    version[var] = match[1]
 
   lists = SplitLibFiles(repo_files)
 
   cmake_chunks = [HEAD]
   cmake_parts = lists
-  for var in sorted(cmake_parts):
-    cmake_chunks.append(FormatCMakeVar(
-        'JPEGXL_INTERNAL_' + var.upper(), cmake_parts[var]))
-
+  cmake_chunks.extend(
+      FormatCMakeVar(f'JPEGXL_INTERNAL_{var.upper()}', cmake_parts[var])
+      for var in sorted(cmake_parts))
   gni_chunks = [HEAD]
   gni_parts = version | lists
-  for var in sorted(gni_parts):
-    gni_chunks.append(FormatGniVar('libjxl_' + var, gni_parts[var]))
-
+  gni_chunks.extend(
+      FormatGniVar(f'libjxl_{var}', gni_parts[var])
+      for var in sorted(gni_parts))
   okay = [
     MaybeUpdateFile(args, 'lib/jxl_lists.cmake', '\n'.join(cmake_chunks)),
     MaybeUpdateFile(args, 'lib/jxl_lists.bzl', '\n'.join(gni_chunks)),

@@ -21,8 +21,7 @@ def compute_kernel(sigma):
   # This controls the length of the kernel.
   m = 2.5
   diff = int(max(1, m * abs(sigma)))
-  kernel = np.exp(-np.arange(-diff, diff + 1)**2 /(2 * sigma * sigma))
-  return kernel
+  return np.exp(-np.arange(-diff, diff + 1)**2 /(2 * sigma * sigma))
 
 
 def convolution(pixels, kernel):
@@ -57,12 +56,12 @@ def smooth_4x4_corners(pixels):
   overshoot = 3.5
   m = 1.0 / (4.0 - overshoot)
   y_size, x_size = pixels.shape
+  off = 2
   for y, x in itertools.product(range(3, y_size - 3, 4),
                                 range(3, x_size - 3, 4)):
     ave = (
         pixels[y, x] + pixels[y, x + 1] + pixels[y + 1, x] +
         pixels[y + 1, x + 1])
-    off = 2
     other = (ave - overshoot * pixels[y, x]) * m
     pixels[y - off, x - off] -= (other - pixels[y, x])
     pixels[y, x] = other
@@ -85,8 +84,7 @@ def smooth_4x4_corners(pixels):
 def smoothing(pixels):
   new_pixels = smooth_4x4_corners(_super_sample(pixels, 4))
   my_kernel = compute_kernel(2.5)
-  smooth_image = convolution(convolution(new_pixels, my_kernel), my_kernel)
-  return smooth_image
+  return convolution(convolution(new_pixels, my_kernel), my_kernel)
 
 
 upscaling = {
@@ -160,10 +158,9 @@ def indices_matrix(upscaling_factor, kernel_size=5):
   matrix_vertical = matrix_with_transpose + (
       np.flip(matrix_with_transpose, axis=0) *
       (matrix_with_transpose != np.flip(matrix_with_transpose, axis=0)))
-  matrix_horizontal = matrix_vertical + (
-      np.flip(matrix_vertical, axis=1) *
-      (matrix_vertical != np.flip(matrix_vertical, axis=1))) - 1
-  return matrix_horizontal
+  return (matrix_vertical +
+          (np.flip(matrix_vertical, axis=1) *
+           (matrix_vertical != np.flip(matrix_vertical, axis=1))) - 1)
 
 
 def format_indices_matrix(upscaling_factor, kernel_size=5):
@@ -174,10 +171,9 @@ def format_indices_matrix(upscaling_factor, kernel_size=5):
     for j in range(kernel_size):
       output_str.append("//")
       for a in range(upscaling_factor // 2):
-        for b in range(kernel_size):
-          output_str.append(
-              f"{'{:x}'.format(int(indices[kernel_size*i + j][kernel_size*a + b])).rjust(2)} "
-          )
+        output_str.extend(
+            f"{'{:x}'.format(int(indices[kernel_size * i + j][kernel_size * a + b])).rjust(2)} "
+            for b in range(kernel_size))
         output_str.append(" ")
       output_str.append("\n")
     output_str.append("\n")
@@ -229,8 +225,7 @@ def main():
       default=None)
 
   args = parser.parse_args()
-  upscaling_factor = args.upscaling_factor
-  if upscaling_factor:
+  if upscaling_factor := args.upscaling_factor:
     print_all_output(upscaling_factor)
   else:
     for factor in [2, 4, 8]:

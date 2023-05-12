@@ -29,18 +29,18 @@ def IsAuthorInFile(email, name, filename):
       if line == name:
         return True
       # Exact email address match is OK, even if the name is different.
-      if fnmatch.fnmatch(line, '* <%s>' % email):
+      if fnmatch.fnmatch(line, f'* <{email}>'):
         print(
-            "User %s <%s> matched with different name %s" % (name, email, line),
-            file=sys.stderr)
+            f"User {name} <{email}> matched with different name {line}",
+            file=sys.stderr,
+        )
         return True
       # Organizations often have *@domain.com email patterns which don't match
       # the name.
       if '*' in line:
         m = email_pattern_regex.match(line)
-        if m and fnmatch.fnmatch(email, m.group(1)):
-          print("User %s <%s> matched pattern %s" % (name, email, line),
-                file=sys.stderr)
+        if m and fnmatch.fnmatch(email, m[1]):
+          print(f"User {name} <{email}> matched pattern {line}", file=sys.stderr)
           return True
   return False
 
@@ -70,16 +70,16 @@ def CheckAuthor(args):
   author_in_file = IsAuthorInFile(
       args.email, args.name, authors_path)
   if not author_in_file:
-    print("User %s <%s> not found, please add yourself to the AUTHORS file" % (
-              args.name, args.email),
-          file=sys.stderr)
+    print(
+        f"User {args.name} <{args.email}> not found, please add yourself to the AUTHORS file",
+        file=sys.stderr,
+    )
 
   sorted_alphabetically = IndividualsInAlphabeticOrder(authors_path)
   if not sorted_alphabetically:
     print("Authors not in alphabetical order, please sort them.", file=sys.stderr)
-  if not author_in_file or not sorted_alphabetically:
-    if not args.dry_run:
-      sys.exit(1)
+  if (not author_in_file or not sorted_alphabetically) and not args.dry_run:
+    sys.exit(1)
 
 
 def main():

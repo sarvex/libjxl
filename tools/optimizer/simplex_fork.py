@@ -93,7 +93,7 @@ def Eval(vec, binary_name, cached=True):
     os.environ["VAR%d" % i] = "0"
   for i in range(len(vec) - 1):
     os.environ["VAR%d" % i] = str(vec[i + 1])
-    key += str(vec[i + 1]) + ":"
+    key += f"{str(vec[i + 1])}:"
   if cached and (key in eval_hash):
     vec[0] = eval_hash[key]
     return
@@ -120,7 +120,7 @@ def Eval(vec, binary_name, cached=True):
   for line in process.communicate(input=None)[0].splitlines():
     print("BE", line)
     sys.stdout.flush()
-    if line[0:3] == b'jxl':
+    if line[:3] == b'jxl':
       bpp = line.split()[3]
       dist_pnorm = line.split()[8]
       dist_max = line.split()[6]

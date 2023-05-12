@@ -17,10 +17,18 @@ with open(results, 'r') as f:
     reader = csv.DictReader(f)
     all_results = list(reader)
 
-nonmetric_columns = set([
-    "method", "image", "error", "size", "pixels", "enc_speed", "dec_speed",
-    "bpp", "bppp", "qabpp"
-])
+nonmetric_columns = {
+    "method",
+    "image",
+    "error",
+    "size",
+    "pixels",
+    "enc_speed",
+    "dec_speed",
+    "bpp",
+    "bppp",
+    "qabpp",
+}
 
 metrics = set(all_results[0].keys()) - nonmetric_columns
 
@@ -28,16 +36,20 @@ metrics = set(all_results[0].keys()) - nonmetric_columns
 def codec(method):
     sm = method.split(':')
     ssm = set(sm)
-    speeds = set([
-        'kitten', 'falcon', 'wombat', 'cheetah', 'tortoise', 'squirrel',
-        'hare', 'fast'
-    ])
+    speeds = {
+        'kitten',
+        'falcon',
+        'wombat',
+        'cheetah',
+        'tortoise',
+        'squirrel',
+        'hare',
+        'fast',
+    }
     s = speeds.intersection(ssm)
     if sm[0] == 'custom':
         return sm[1]
-    if sm[0] == 'jxl' and s:
-        return 'jxl-' + list(s)[0]
-    return sm[0]
+    return f'jxl-{list(s)[0]}' if sm[0] == 'jxl' and s else sm[0]
 
 
 data = {(m, img): {c: []
@@ -202,13 +214,18 @@ def style(codec):
             'width': 2
         },
     }
-    return configs.get(codec, dict())
+    return configs.get(codec, {})
 
 
-visible_by_default = set([
-    'jxl-kitten', 'ssim.444.aom.avif', 'heif', 'webp', 'jpeg', 'xt.jpg',
-    'default.kdu.j2k'
-])
+visible_by_default = {
+    'jxl-kitten',
+    'ssim.444.aom.avif',
+    'heif',
+    'webp',
+    'jpeg',
+    'xt.jpg',
+    'default.kdu.j2k',
+}
 
 column_remap = {
     'p': '6-Butteraugli',
@@ -234,26 +251,24 @@ def remap(metric):
 
 
 for (m, img) in data:
-    fname = "%s/%s_%s" % (output_dir, m, img)
+    fname = f"{output_dir}/{m}_{img}"
     fig = go.Figure()
     for method in sorted(data[(m, img)].keys(), key=pos):
         vals = data[(m, img)][method]
-        zvals = list(zip(*sorted(vals)))
-        if not zvals:
-            continue
-        fig.add_trace(
-            go.Scatter(x=zvals[0],
-                       y=[remap(m)(x) for x in zvals[1]],
-                       mode='lines',
-                       name=method,
-                       line=style(method),
-                       visible=True
-                       if method in visible_by_default else 'legendonly'))
+        if zvals := list(zip(*sorted(vals))):
+            fig.add_trace(
+                go.Scatter(x=zvals[0],
+                           y=[remap(m)(x) for x in zvals[1]],
+                           mode='lines',
+                           name=method,
+                           line=style(method),
+                           visible=True
+                           if method in visible_by_default else 'legendonly'))
     fig.update_layout(title=img,
                       xaxis_title='bpp',
                       yaxis_title=column_remap.get(m, m))
     fig.update_xaxes(type='log')
     if OUTPUT == 'html':
-        fig.write_html(fname + '.html', include_plotlyjs='directory')
+        fig.write_html(f'{fname}.html', include_plotlyjs='directory')
     else:
-        fig.write_image(fname + '.' + OUTPUT, scale=4)
+        fig.write_image(f'{fname}.{OUTPUT}', scale=4)
